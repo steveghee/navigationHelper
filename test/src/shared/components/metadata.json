@@ -26,7 +26,7 @@
       "viewName": "Home",
       "url-template": "index.html?expId=1",
       "entryPoint": "index.html?expId=1",
-      "thumbnail": "",
+      "thumbnail": "public/Uploaded/navigation.jpg",
       "thingTemplateName": ""
     }
   ],

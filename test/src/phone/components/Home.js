@@ -2,7 +2,7 @@
 
 
 const helperscript = document.createElement('script');
-helperscript.src = "app/resources/Uploaded/navigationhelper.js";
+helperscript.src   = "app/resources/Uploaded/navigationhelper.js";
 document.head.appendChild(helperscript);
 helperscript.onload = function(){
   
@@ -10,12 +10,22 @@ helperscript.onload = function(){
     console.log('you are '+d+'m away from '+p.get().position.ToString()); 
   }
 
-  $scope.helper = new spatialHelper( {device:"app/resources/Uploaded/ipad.pvz", 
-                                        feet:"app/resources/Uploaded/feet.png", 
-                                        head:"app/resources/Uploaded/head.pvz"},
-                                     tml3dRenderer)	 // we need to pass the renderer instance in
-		  	  		  .Steps(25)					 // how many dots to show (default is 30)
-			 		  .Cutoff(0.5,true,$scope.ping); // setup a trigger that will inform us when we get close
+  // simplest example - only the tunnel (default color=yellow), no helper graphics
+  // $scope.helper = new spatialHelper( tml3dRenderer );
+  
+  // more complex example - user-defined helper graphics, customised colors etc.
+  $scope.helper = new spatialHelper( tml3dRenderer,  // we need to pass the renderer instance in
+                                     {
+                                       steps:15,     // how many dots to show (default is 30)
+                                       color:[1,0,1] // tunnel is purple!
+                                     },
+                                     {
+                                       device:"app/resources/Uploaded/ipad.pvz", 
+                                         feet:"app/resources/Uploaded/feet.png", 
+                                         head:"app/resources/Uploaded/head.pvz"
+                                     }
+                      )
+			 		  .Cutoff(0.5,true,$scope.ping);  // setup a trigger that will inform us when we get close
   
   //
   // when the user moves, keep track of him/her
@@ -30,7 +40,8 @@ helperscript.onload = function(){
 // helper to reconfigure things to the selected location
 $scope.$watch('view.wdg.poiSelect.value', function(poiSelected) {
   var newloc = $scope.pois[parseInt(poiSelected)];
-  $scope.helper.showAt(newloc);
+  if (newloc!=undefined) 
+    $scope.helper.Color(newloc.col).showAt(newloc.pos);
 });
 
 $scope.set = function() {
@@ -44,7 +55,8 @@ $scope.show = function() {
 // create a list of points of interest
 $scope.app.params.pois = [];
 $scope.pois = [];
-
+// and for fun, lets assign each one a different color
+$scope.cols = [ [1,0,0],[0,1,0],[0,0,1],[1,0,1],[1,1,0],[0,1,1],[1,1,1],[0.9,0.6,0.2] ];
 //
 // if user clicks 'add', add the current POI to the list - these are displayed in the UI
 $scope.add = function() {
@@ -52,7 +64,7 @@ $scope.add = function() {
   // add the INDEX to the UI
   $scope.app.params.pois.push({display:'p '+(idx+1),value:idx});
   // add the data (we dont want to encode it as a string) to a separate array
-  $scope.pois.push($scope.helper.get());
+  $scope.pois.push({col:$scope.cols[idx%8], pos:$scope.helper.get()});
 }
 
 

@@ -3,12 +3,15 @@
 //steve's positional helper library
 //
 
-function spatialHelper(targets, renderer) {
+function spatialHelper(renderer, tunnel, targets) {
   
   // constructor
-  this.nsteps       = 30;
+  this.nsteps       = tunnel != undefined && tunnel.steps != undefined ? tunnel.steps : 30;
+  this.color        = tunnel != undefined && tunnel.color != undefined ? tunnel.color : undefined;
+  this.tunnelGeom   = tunnel != undefined && tunnel.geom  != undefined ? tunnel.geom :"app/resources/Uploaded/Sphere.pvz";
   this.tunneling    = false;
   this.showTunnel   = false;
+  
   this.headloc      = undefined;
   this.target       = targets === undefined ? {} : targets;
   this.target.loc   = {position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1])};
@@ -16,7 +19,7 @@ function spatialHelper(targets, renderer) {
   this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
   this.target.hname = this.target.head   != undefined ? "head"   : undefined;
   this.floorOffset  = 0;
-  this.tunnelGeom   = "app/resources/Uploaded/Sphere.pvz";
+  
   this.cutoff       = 0.5;
   this.autoCutoff   = false;
   this.triggered    = undefined;
@@ -85,11 +88,13 @@ function spatialHelper(targets, renderer) {
         
       	// turn tunnel effect off when we get close?
         if (this.autoCutoff === true) {
-        	$scope.helper.hide();
+          this.hide();
         } 
         
         // and inform the user?
-        if (this.triggered != undefined) this.triggered(this,d);
+        if (this.triggered != undefined) {
+          this.triggered(this,d);
+        }
       }
 
     }
@@ -99,7 +104,7 @@ function spatialHelper(targets, renderer) {
 
   }
   
-  this.Steps  = function(steps)  { this.nsteps = steps;  return this; }
+  this.Color  = function(color)  { this.color  = color;  return this; }
   this.Offset = function(offset) { this.offset = offset; return this; }
   this.Cutoff = function(cutoff,auto,triggered) { 
     if (auto != undefined) {
@@ -125,6 +130,10 @@ function spatialHelper(targets, renderer) {
     var gz = new Vector4().Set3a(arg.gaze);
     var pg = gz.Scale(gd).Add(p3);
     var p2 = pg.Scale(2).Sub(p0);
+    
+    // this is the same for all, so calculate this once
+    var foggedshade = this.color != undefined ? 'fogged;r f '+this.color[0]+';g f '+this.color[1]+';b f '+this.color[2] 
+                                              : 'fogged';
     
     // here we go : classic cubic bezier spline curve
     //
@@ -158,7 +167,10 @@ function spatialHelper(targets, renderer) {
       //
       // 1. if we get close (within 0.5m) start fading
       //
-      this.renderer.setProperties(img,{ shader:"fogged", opacity : (gd - 0.5), hidden: !this.showTunnel }); 
+      
+      this.renderer.setProperties(img,{ shader:foggedshade, 
+                                       opacity: (gd - 0.5), 
+                                        hidden: !this.showTunnel }); 
         
       //
       // finally, distance scaling of the rings
@@ -172,8 +184,10 @@ function spatialHelper(targets, renderer) {
     // tunnel. as we get close, fade the floor marker (using the shader fade property).
     //
     var pgd = p3.Distance(p0,[1,0,1]);
+    
     if (this.target.fname != undefined) 
-      this.renderer.setProperties (this.target.fname,{shader:"pinger;rings f 5;r f 0;g f 1;direction f -1;fade f "+(1 - (pgd - 0.5)), hidden:false});
+      this.renderer.setProperties (this.target.fname,{ shader:"pinger;rings f 5;r f 0;g f 1;direction f -1;fade f "+(1 - (pgd - 0.5)), 
+                                                       hidden:false});
   
     return pgd;
   }
@@ -272,8 +286,8 @@ function spatialHelper(targets, renderer) {
     for (var i=1; i< obj.nsteps; i++) {
      
       // declare using pvz
-      shapes.push( {name:"tunnel"+i, 
-                     src:obj.tunnelGeom}); 
+      shapes.push( { name:"tunnel"+i, 
+                      src:obj.tunnelGeom } ); 
      
       // optional - declare as images (see below) 
       // shapes.push( {name:"tunnel"+i, src:"app/resources/Uploaded/arrow.png?name=img"});
@@ -318,7 +332,6 @@ function spatialHelper(targets, renderer) {
                            src="{{obj.src}}" 
                            hidden="true"
                            shader="fogged"
-                           color="rgba(255,255,25,1);"
                            >
   </twx-dt-model>
 </div>
