@@ -1,0 +1,21 @@
+[2019-11-25T14:30:25.697Z] debug: [twx-studio:upgrade:navigation] Begin upgrade of project
+[2019-11-25T14:30:25.698Z] info: [twx-studio:upgrade:navigation] Upgrading project
+[2019-11-25T14:30:25.710Z] debug: [twx-studio:upgrade:navigation] Make sure there are not any stale files lying around
+[2019-11-25T14:30:25.713Z] debug: [twx-studio:upgrade:navigation] Create .gitignore for project dir
+[2019-11-25T14:30:25.714Z] debug: [twx-studio:upgrade:navigation] Copying /src/**/* to project, overwrite=false
+[2019-11-25T14:30:25.715Z] debug: [twx-studio:upgrade:navigation] Copying /**/* to project, skip /src/**/*,  overwrite=true
+[2019-11-25T14:30:25.826Z] debug: [twx-studio:upgrade:navigation] Copy of project files complete
+[2019-11-25T14:30:25.827Z] debug: [twx-studio:upgrade:navigation] Updating version to 
+[2019-11-25T14:30:25.827Z] debug: [twx-studio:upgrade:navigation] onupgrade sucessful, now build the project
+[2019-11-25T14:30:25.827Z] debug: [twx-studio:upgrade:navigation] BEGIN buildApp
+[2019-11-25T14:30:25.827Z] debug: [twx-studio:upgrade:navigation] write settings
+[2019-11-25T14:30:25.828Z] debug: [twx-studio:upgrade:navigation] copy runtime extensions
+[2019-11-25T14:30:26.455Z] debug: [twx-studio:upgrade:navigation] packageThemeSet
+[2019-11-25T14:30:28.393Z] debug: [twx-studio:upgrade:navigation] onBuild
+[2019-11-25T14:30:28.393Z] info: [twx-studio:upgrade:navigation] Building ves-ar-extension app:
+[2019-11-25T14:30:28.426Z] debug: [twx-studio:upgrade:navigation] pathDir
+[2019-11-25T14:30:28.427Z] debug: [twx-studio:upgrade:navigation] scaffoldDir
+[2019-11-25T14:30:28.427Z] debug: [twx-studio:upgrade:navigation] copySrc
+[2019-11-25T14:30:28.787Z] debug: [twx-studio:upgrade:navigation] buildApp
+[2019-11-25T14:30:29.071Z] debug: [twx-studio:upgrade:navigation] END buildApp
+[2019-11-25T14:30:29.071Z] debug: [twx-studio:upgrade:navigation] Build succeeded.

@@ -1,0 +1,347 @@
+{
+  "attributes": {
+    "twx-widget": "",
+    "widget-id": "view-1",
+    "widget-name": "view-1",
+    "is-widget-container": "true",
+    "viewtype": "ar"
+  },
+  "children": [
+    {
+      "name": "twx-container-content",
+      "children": [
+        {
+          "attributes": {
+            "twx-widget": "",
+            "widget-id": "3DContainer-1",
+            "widget-name": "3D Container",
+            "is-widget-container": "true",
+            "enabletrackingevents": "true",
+            "dropshadow": "true"
+          },
+          "name": "twx-dt-view",
+          "children": [
+            {
+              "name": "twx-container-content",
+              "children": [
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "tml-helper",
+                    "widget-name": "tml-helper",
+                    "text": "<div ng-repeat=\"obj in helper.tunnel_objects\">\n  <twx-dt-model id=\"{{obj.name}}\" \n                           x=\"0\" y=\"0\" z=\"0\" opacity=\"1.0\"\n                           rx=\"0\" ry=\"0\" rz=\"0\" \n                           src=\"{{obj.src}}\" \n                           hidden=\"true\"\n                           shader=\"fogged\"\n                           color=\"rgba(255,255,25,1);\"\n                           >\n  </twx-dt-model>\n</div>\n<div ng-repeat=\"obj in helper.nav_objects\">\n  <twx-dt-model id=\"{{obj.name}}\" \n                           x=\"0\" y=\"0\" z=\"0\" opacity=\"1.0\"\n                           rx=\"0\" ry=\"0\" rz=\"0\"\n                           src=\"{{obj.src}}\" \n                           hidden=\"true\"\n                           >\n  </twx-dt-model>\n</div>\n<div ng-repeat=\"obj in helper.nav_images\">\n  <twx-dt-image id=\"{{obj.name}}\" \n                           x=\"0\" y=\"0\" z=\"0\" opacity=\"1.0\"\n                           rx=\"-90\" ry=\"0\" rz=\"0\"                           \n                           height=\"0.5\" width=\"0.5\"\n                           src=\"{{obj.src}}\" \n                           hidden=\"true\"\n                           shader=\"pinger\"\n                           >\n  </twx-dt-model>\n</div>\n\n<script name=\"shaded\" type=\"x-shader/x-fragment\">\n  precision mediump float;\n  const float PI=3.1415926; \n  varying vec3 vertex;\n  varying vec3 normal;\n  varying vec2 texcoord;\n  varying vec4 vcolor;\n  varying float dist;\n\t\t\t  \n  uniform sampler2D tex0;\n  uniform vec4 surfaceColor;\n\n  const vec4 ambientColor = vec4(0.15, 0.15, 0.15, 1.0); \n  const vec4 specColor    = vec4(0.05, 0.05, 0.05, 1.0);\n  void main() {\n    vec4 color = vec4(1.,.5,.25,1.); //orange surfaceColor + texture2D(tex0,texcoord);;\n\t\t\t\t \n    vec3 lightPos = vec3(1.,1.,1.);\n    vec3 lightDir = -normalize(lightPos);\n    vec3 finalNormal = normalize(normal);\n\t\t\t\t\n    float lambertian = dot(lightDir,finalNormal);\n    float specular = 0.0;\n    vec3 viewDir = normalize(-vertex);\n\n    if (lambertian < 0.0) \n        finalNormal = - finalNormal;\n\n\tvec3 reflectDir = reflect(-lightDir, finalNormal);\n\tfloat specAngle = max(dot(reflectDir, viewDir), 0.0);\n\tspecular = pow(specAngle, 4.0);\n\n    color = ambientColor * color + color * abs(lambertian) ; // + specColor * specular;\n\t\t\t\t\t\n    color.a = 1. - smoothstep(.8,.4,dist);\n    gl_FragColor=vec4(color);\n  }\n</script>\n<script name=\"shaded\" type=\"x-shader/x-vertex\">\n  attribute vec3 vertexPosition;\n  attribute vec3 vertexNormal;\n  attribute vec2 vertexTexCoord;\n\t\t\t\n  varying vec2 texcoord;\n  varying vec3 normal;  \n  varying vec3 vertex;\n  varying float dist;\n  \n  uniform mat4 modelViewProjectionMatrix;\n  uniform mat4 modelViewMatrix;\n  uniform mat4 normalMatrix;\n\n  void main() {\n    vec4 vp = vec4(vertexPosition, 1.0);\n    gl_Position = modelViewProjectionMatrix * vp;\n    normal     = vec3(normalize(normalMatrix * vec4(vertexNormal,0.0)));\n    texcoord  = vertexTexCoord;\n    vertex       = vp.xyz;\n    vec3 vv     = vec3(modelViewMatrix * vp);\n    dist           = length(vv);\n  }\n</script>\n\n<script name=\"pinger\" type=\"x-shader/x-vertex\">\n  attribute vec4 vertexPosition; \n  attribute vec2 vertexTexCoord;\n\n  varying vec2 texcoord;\n\n  uniform mat4 modelViewProjectionMatrix; \n  void main() { \n    gl_Position=vec4(modelViewProjectionMatrix * vertexPosition);\n    texcoord = vertexTexCoord - 0.5;\n  }\n</script>\n<script name=\"pinger\" type=\"x-shader/x-fragment\">\n  precision mediump float;\n  const float PI=3.1415926; \n  varying vec2 texcoord;\n\n  uniform float rings; \n  uniform float fade;\n  uniform float rate;\n  uniform float direction;\n  uniform float r;\n  uniform float g;\n  uniform float b;\n  uniform float tick;\n\n  uniform sampler2D texSampler2D;\n  uniform vec4 surfaceColor;\n\n  void main() {\n    float viz = 1. - fade;\n    float wrap = 2. * PI;\n    float speed = (direction < 0.) ? 1.+rate : -1.-rate;   // note there is a default speed (1) and the rate then adjusts it\n    float o= speed * mod(tick,wrap);\n    float l=length(texcoord)*PI;\n    float freq = max(rings * 2.,1.);\n    float fr=o + (l * freq);\n    float a1=sin(fr);\n    float a2=clamp(cos(l),0.,1.); // edge fade is a cosine\n    float a = viz * a1 * a2;\n\n    vec3 c = vec3(r,g,b);     \n    if (length(c) == 0.) c=vec3(0.,1.,0.);  //thingview bug - should be surfaceColor.xyz; //\n\n    // our primary image is passed in the texture \n    vec4 tx1 = texture2D(texSampler2D,(texcoord + 0.5));\n    // we then composite the pinger into this image - anything NOT alpha=1 is replaced with the pinger effect\n    if (tx1.a >= 1.) { \n        c = tx1.rgb;\n        a = viz;\n    }\n    if (a<0.) discard;\n    else gl_FragColor=vec4(c,a);\n  }\n</script>\n\n<script name=\"fogged\" type=\"x-shader/x-fragment\">\n  precision mediump float;\n  varying vec2 texCoord;\n  varying float dist;\n\n  uniform sampler2D img;\n  uniform float fade;\n  uniform vec4 surfaceColor;\n\n  void main(void) {\n    vec4 tx = mix(vec4(0.92,0.87,0.,.5),vec4(.46,.43,0.,.5),dist/4.);\n    float dd = 1. - smoothstep(1.5,.6,dist);\n    float aa = dd * tx.a;\n    vec4 wt = vec4(1.,1.,1.,aa);\n    if (aa <= 0.) discard; \n    else gl_FragColor = mix(wt,tx,dd);\n}\n</script>\n<script name=\"fogged\" type=\"x-shader/x-vertex\">\n  attribute vec3 vertexPosition;\n  attribute vec2 vertexTexCoord;\n\n  varying vec2 texCoord;\n  varying float dist;\n\n  uniform mat4 modelViewProjectionMatrix;\n  uniform mat4 modelViewMatrix;\n  uniform mat4 modelMatrix;\n  uniform mat4 normalMatrix;\n  void main() {\n    vec4 vertexNormal=vec4(0.,0.,1.,0.);\n    vec4 vp       = vec4(vertexPosition, 1.0);\n    gl_Position  = modelViewProjectionMatrix * vp;\n    texCoord    = vertexTexCoord;\n    vec3 vv       = vec3(modelViewMatrix * vp);\n    dist             = length(vv);\n    }\n</script>\n<script name=\"foggedLit\" type=\"x-shader/x-fragment\">\n  precision mediump float;\n  varying vec3 vertex;\n  varying vec3 normal;\n  varying float dist;\n\n  uniform float fade;\n  uniform vec4 surfaceColor;\n\n  const vec4 ambientColor = vec4(0.15, 0.15, 0.15, 1.0); \n  const vec4 specColor    = vec4(0.05, 0.05, 0.05, 1.0);\n\t\t\t\t \n  void main(void) {\n    vec4 color = surfaceColor;\n\n    vec3 lightPos = vec3(1.,1.,1.);\n    vec3 lightDir = -normalize(lightPos);\n    vec3 finalNormal = normalize(normal);\n\t\t\t\t\n    float lambertian = dot(lightDir,finalNormal);\n    float specular = 0.0;\n    vec3 viewDir = normalize(-vertex);\n\n    if (lambertian < 0.0) \n        finalNormal = - finalNormal;\n\n    vec3 reflectDir = reflect(-lightDir, finalNormal);\n    float specAngle = max(dot(reflectDir, viewDir), 0.0);\n    specular = pow(specAngle, 4.0);\n\n    color = ambientColor * color +\t\n                   color * abs(lambertian)   +   \n\t\t      specColor * specular;\n\t\t\t\t\t\n    color.a = 1. - smoothstep(1.5,.6,dist);\n    gl_FragColor=vec4(color);\n}\n</script>\n<script name=\"foggedLit\" type=\"x-shader/x-vertex\">\n  attribute vec3 vertexPosition;\n  attribute vec3 vertexNormal;\n\n  varying vec3 vertex;\n  varying vec3 normal;\n  varying float dist;\n\n  uniform mat4 modelViewProjectionMatrix;\n  uniform mat4 modelViewMatrix;\n  uniform mat4 modelMatrix;\n  uniform mat4 normalMatrix;\n  void main() {\n    vec4 vp       = vec4(vertexPosition, 1.0);\n    gl_Position  = modelViewProjectionMatrix * vp;\n    normal     = vec3(normalize(normalMatrix * vec4(vertexNormal,0.0)));\n    vec3 vv       = vec3(modelViewMatrix * vp);\n    dist             = length(vv);\n    vertex         = vp.xyz;\n    }\n  </script>"
+                  },
+                  "name": "twx-tml-text"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "spatialTarget-1",
+                    "widget-name": "spatialTarget-1",
+                    "rx": "-90"
+                  },
+                  "name": "twx-dt-target-spatial"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "x_marks_the_spot",
+                    "widget-name": "x_marks_the_spot",
+                    "src": "Default/vu_sinewave.svg",
+                    "height": "1",
+                    "scale": "0.1",
+                    "y": "0.0000",
+                    "rx": "-90.00",
+                    "ry": "0.00",
+                    "rz": "-0.00"
+                  },
+                  "name": "twx-dt-image"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "attributes": {
+            "twx-widget": "",
+            "widget-id": "2DOverlay-1",
+            "widget-name": "2D Overlay",
+            "is-widget-container": "true"
+          },
+          "name": "twx-overlay",
+          "children": [
+            {
+              "name": "twx-container-content",
+              "children": [
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "panel-1",
+                    "widget-name": "Top Panel",
+                    "is-widget-container": "true",
+                    "position": "top"
+                  },
+                  "name": "twx-overlay-container",
+                  "children": [
+                    {
+                      "name": "twx-container-content",
+                      "children": [
+                        {
+                          "attributes": {
+                            "twx-widget": "",
+                            "widget-id": "gridLayout-1",
+                            "widget-name": "gridLayout-1",
+                            "is-widget-container": "true"
+                          },
+                          "name": "twx-gridlayout",
+                          "children": [
+                            {
+                              "name": "twx-container-content",
+                              "children": [
+                                {
+                                  "attributes": {
+                                    "twx-widget": "",
+                                    "widget-id": "row-1",
+                                    "widget-name": "row-1",
+                                    "is-widget-container": "true"
+                                  },
+                                  "name": "twx-row",
+                                  "children": [
+                                    {
+                                      "name": "twx-container-content",
+                                      "children": [
+                                        {
+                                          "attributes": {
+                                            "twx-widget": "",
+                                            "widget-id": "column-1",
+                                            "widget-name": "column-1",
+                                            "is-widget-container": "true"
+                                          },
+                                          "name": "twx-col",
+                                          "children": [
+                                            {
+                                              "name": "twx-container-content",
+                                              "children": [
+                                                {
+                                                  "attributes": {
+                                                    "twx-widget": "",
+                                                    "widget-id": "button-1",
+                                                    "widget-name": "button-1",
+                                                    "click-expression": "set()",
+                                                    "text": "set"
+                                                  },
+                                                  "name": "twx-button"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "attributes": {
+                                            "twx-widget": "",
+                                            "widget-id": "column-2",
+                                            "widget-name": "column-2",
+                                            "is-widget-container": "true"
+                                          },
+                                          "name": "twx-col",
+                                          "children": [
+                                            {
+                                              "name": "twx-container-content"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "attributes": {
+                                            "twx-widget": "",
+                                            "widget-id": "column-3",
+                                            "widget-name": "column-3",
+                                            "is-widget-container": "true"
+                                          },
+                                          "name": "twx-col",
+                                          "children": [
+                                            {
+                                              "name": "twx-container-content"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "attributes": {
+                                            "twx-widget": "",
+                                            "widget-id": "column-4",
+                                            "widget-name": "column-4",
+                                            "is-widget-container": "true"
+                                          },
+                                          "name": "twx-col",
+                                          "children": [
+                                            {
+                                              "name": "twx-container-content"
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "attributes": {
+                                            "twx-widget": "",
+                                            "widget-id": "column-5",
+                                            "widget-name": "column-5",
+                                            "is-widget-container": "true"
+                                          },
+                                          "name": "twx-col",
+                                          "children": [
+                                            {
+                                              "name": "twx-container-content",
+                                              "children": [
+                                                {
+                                                  "attributes": {
+                                                    "twx-widget": "",
+                                                    "widget-id": "button-2",
+                                                    "widget-name": "button-2",
+                                                    "click-expression": "show();",
+                                                    "text": "show"
+                                                  },
+                                                  "name": "twx-button"
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "2DOverlayBody-1",
+                    "widget-name": "2D Body",
+                    "is-widget-container": "true"
+                  },
+                  "name": "twx-overlay-body",
+                  "children": [
+                    {
+                      "name": "twx-container-content",
+                      "children": [
+                        {
+                          "attributes": {
+                            "twx-widget": "",
+                            "widget-id": "panel-2",
+                            "widget-name": "Left Panel",
+                            "is-widget-container": "true",
+                            "position": "left"
+                          },
+                          "name": "twx-overlay-container",
+                          "children": [
+                            {
+                              "name": "twx-container-content"
+                            }
+                          ]
+                        },
+                        {
+                          "attributes": {
+                            "twx-widget": "",
+                            "widget-id": "panel-3",
+                            "widget-name": "Center Panel",
+                            "is-widget-container": "true",
+                            "position": "center"
+                          },
+                          "name": "twx-overlay-container",
+                          "children": [
+                            {
+                              "name": "twx-container-content"
+                            }
+                          ]
+                        },
+                        {
+                          "attributes": {
+                            "twx-widget": "",
+                            "widget-id": "panel-4",
+                            "widget-name": "Right Panel",
+                            "is-widget-container": "true",
+                            "position": "right"
+                          },
+                          "name": "twx-overlay-container",
+                          "children": [
+                            {
+                              "name": "twx-container-content",
+                              "children": [
+                                {
+                                  "attributes": {
+                                    "twx-widget": "",
+                                    "widget-id": "poiSelect",
+                                    "widget-name": "poiSelect",
+                                    "label": "saved"
+                                  },
+                                  "name": "twx-select",
+                                  "children": [
+                                    {
+                                      "attributes": {
+                                        "databind-id": "db-1574886149482",
+                                        "source-type": "data",
+                                        "source-name": "pois",
+                                        "source-item-type": "value",
+                                        "source-item-name": "pois",
+                                        "binding-type": "custom_field",
+                                        "from-expression": "app.params['pois']",
+                                        "to-property": "list"
+                                      },
+                                      "name": "twx-databind"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "panel-5",
+                    "widget-name": "Bottom Panel",
+                    "is-widget-container": "true",
+                    "position": "bottom"
+                  },
+                  "name": "twx-overlay-container",
+                  "children": [
+                    {
+                      "name": "twx-container-content",
+                      "children": [
+                        {
+                          "attributes": {
+                            "twx-widget": "",
+                            "widget-id": "button-3",
+                            "widget-name": "button-3",
+                            "click-expression": "add()",
+                            "text": "add"
+                          },
+                          "name": "twx-button"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "twx-fragment-parameters"
+    },
+    {
+      "name": "twx-view-data"
+    }
+  ],
+  "name": "twx-view"
+}
