@@ -13,8 +13,8 @@ function spatialHelper(renderer, tunnel, targets) {
   this.showTunnel   = false;
   
   this.headloc      = undefined;
-  this.target       = targets === undefined ? {} : targets;
-  this.target.loc   = {position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1])};
+  this.target       = targets != undefined ? targets : {};
+  this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
   this.target.tname = this.target.device != undefined ? "target" : undefined;
   this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
   this.target.hname = this.target.head   != undefined ? "head"   : undefined;
@@ -31,6 +31,10 @@ function spatialHelper(renderer, tunnel, targets) {
   ///////////////////////////////////////////////////////////////////////////////////////
   // public API
   //
+  
+  // 
+  // set helper to specific location. if undefined, helper is hidden
+  //
   this.setAt = function(locator) {
   
     if (locator != undefined) {
@@ -46,6 +50,9 @@ function spatialHelper(renderer, tunnel, targets) {
     return this;
   }
   
+  //
+  // set helper at specific location AND show it
+  //
   this.showAt = function(locator) {
     this.setAt(locator);
     if (locator != undefined) 
@@ -53,26 +60,44 @@ function spatialHelper(renderer, tunnel, targets) {
     return this;
   }
   
+  //
+  // auto-set helper to current tracked head location/direction
+  //
   this.setAtCurrent = function() {
     // switch the endpoint to be the current headlocation
     this.target.loc = this._positionHelpers(this.headloc);
     return this;
   }
   
+  //
+  // get the current location of the helper - useful if you want to 
+  // persist this for future use
+  //
   this.get = function() {
     return this.target.loc;
   }
   
+  //
+  // hide the helper
+  // note that this also pauses drawing the helper, thus optimising performance
+  //
   this.hide = function() {
     this._toggleTunnel(false);
     return this;
   }
   
+  //
+  // show the helper - note the auto-cuttoff state may immediately hide it 
+  // again!
+  //
   this.show = function() {
     this._toggleTunnel(true);
     return this;
   }
   
+  //
+  // draw the helper - the ribbon/tunnel and any associated visuals
+  //
   this.draw = function(arg) {
 
     if (this.tunneling) {
@@ -104,8 +129,22 @@ function spatialHelper(renderer, tunnel, targets) {
 
   }
   
+  //
+  // set the color of the ribbon
+  //
   this.Color  = function(color)  { this.color  = color;  return this; }
+  
+  //
+  // set the height offset 
+  //
   this.Offset = function(offset) { this.offset = offset; return this; }
+  
+  //
+  // set the cutoff distance.  if auto is true, helper will hide itself
+  // when the user gets within the specified distance. the third parameter
+  // is a callback funciton which can be used to perform some action based 
+  // on the user entering the cutoff radius
+  //
   this.Cutoff = function(cutoff,auto,triggered) { 
     if (auto != undefined) {
       this.autoCutoff = auto;
@@ -117,7 +156,8 @@ function spatialHelper(renderer, tunnel, targets) {
     this.triggered = triggered;
     return this;
   }
-
+  
+  //
   ///////////////////////////////////////////////////////////////////////////////////////
   // private API
   this._drawTunnel = function(arg) {
@@ -142,7 +182,7 @@ function spatialHelper(renderer, tunnel, targets) {
     
       var img = "tunnel"+i;
    
-   	  //
+      //
       // precalculate some coefficients
       //
       var t    = i/nsp1;
@@ -165,7 +205,7 @@ function spatialHelper(renderer, tunnel, targets) {
       var bdt = p1.Sub(p0).Scale(3*omt2).Add(p2.Sub(p1).Scale(6*t*omt)).Add(p3.Sub(p2).Scale(3*t2)).Normalize();
     
       //
-      // 1. if we get close (within 0.5m) start fading
+      // if we get close (within 0.5m) start fading
       //
       
       this.renderer.setProperties(img,{ shader:foggedshade, 
@@ -185,10 +225,13 @@ function spatialHelper(renderer, tunnel, targets) {
     //
     var pgd = p3.Distance(p0,[1,0,1]);
     
-    if (this.target.fname != undefined) 
-      this.renderer.setProperties (this.target.fname,{ shader:"pinger;rings f 5;r f 0;g f 1;direction f -1;fade f "+(1 - (pgd - 0.5)), 
+    if (this.target.fname != undefined) {
+      var tcol      = this.target.color != undefined ? this.target.color : this.color;
+      var pingshade = tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1;fade f '+(1 - (pgd - 0.5)) 
+                                        : 'pinger;rings f 5;r f 0;g f 1;b f 0;direction f -1;fade f '+(1 - (pgd - 0.5));
+      this.renderer.setProperties (this.target.fname,{ shader:pingshade, 
                                                        hidden:false});
-  
+    }
     return pgd;
   }
   
@@ -205,14 +248,19 @@ function spatialHelper(renderer, tunnel, targets) {
       if (this.target.tname != undefined) 
       this.renderer.setProperties (this.target.tname,{shader:"foggedLit", 
                                                       hidden:false });
-      if (this.target.fname != undefined) 
-      this.renderer.setProperties (this.target.fname,{shader:"pinger",    
-                                                      hidden:false });
+      if (this.target.fname != undefined) {
+        var tcol      = this.target.color != undefined ? this.target.color : this.color;
+        var pingshade = tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1'
+                                          : 'pinger;rings f 5;r f 0;g f 1;b f 0;direction f -1';
+                                                
+        this.renderer.setProperties (this.target.fname,{shader:pingshade,    
+                                                        hidden:false });
+      }
       if (this.target.hname != undefined) 
       this.renderer.setProperties (this.target.hname,{shader:"foggedLit",    
                                                       hidden:false });
     
-    }  else {
+    } else {
     
       if (this.target.tname != undefined) 
       this.renderer.setProperties (this.target.tname,{shader:"foggedLit", 
@@ -267,11 +315,15 @@ function spatialHelper(renderer, tunnel, targets) {
       var esf = r90.ToEuler(true);
       // feet are positioned 0.5m back from the target
       var fp  = new Vector4().Set3(ep.v[0], - this.floorOffset, ep.v[2]).Add(hg.Scale(0.5));
-    
+      
+      var tcol      = this.target.color != undefined ? this.target.color : this.color;
+      var pingshade = tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1'
+                                        : 'pinger;rings f 5;r f 0;g f 1;b f 0;direction f -1';
+
       this.renderer.setScale      (this.target.fname, 1,            1,           1       );
       this.renderer.setTranslation(this.target.fname, fp.v[0],      fp.v[1],     fp.v[2] ); 
       this.renderer.setRotation   (this.target.fname, esf.attitude, esf.heading, esf.bank);
-      this.renderer.setProperties (this.target.fname, {shader:"pinger;rings f 5;r f 0;g f 1;direction f -1", 
+      this.renderer.setProperties (this.target.fname, {shader:pingshade, 
                                                        hidden:false});
     }
     

@@ -6,26 +6,45 @@ helperscript.src   = "app/resources/Uploaded/navigationhelper.js";
 document.head.appendChild(helperscript);
 helperscript.onload = function(){
   
+  // simplest example - only the tunnel (default color=yellow), no helper graphics
+  /*
+  $scope.helper = new spatialHelper( tml3dRenderer );
+  */
+  
+  
+  
+  // another example; feet only
+  /*
+  $scope.helper = new spatialHelper( tml3dRenderer, 
+                                     undefined, // default tunnel
+                                     {
+                                         feet:"app/resources/Uploaded/feet.png",   // show some feet
+                                     }
+                                   );
+  */
+  
+  
+  // more complex example - user-defined helper graphics, customised colors, callback when we reach the target area
+  
+
   $scope.ping = function(p,d) {
     console.log('you are '+d+'m away from '+p.get().position.ToString()); 
   }
 
-  // simplest example - only the tunnel (default color=yellow), no helper graphics
-  // $scope.helper = new spatialHelper( tml3dRenderer );
-  
-  // more complex example - user-defined helper graphics, customised colors etc.
   $scope.helper = new spatialHelper( tml3dRenderer,  // we need to pass the renderer instance in
                                      {
                                        steps:15,     // how many dots to show (default is 30)
                                        color:[1,0,1] // tunnel is purple!
                                      },
                                      {
-                                       device:"app/resources/Uploaded/ipad.pvz", 
-                                         feet:"app/resources/Uploaded/feet.png", 
-                                         head:"app/resources/Uploaded/head.pvz"
+                                       device:"app/resources/Uploaded/ipad.pvz",   // show a device
+                                         feet:"app/resources/Uploaded/feet.png",   // show some feet
+                                         head:"app/resources/Uploaded/head.pvz",   // show a head
+                                        color:[0,1,0]                              // pinger is green
                                      }
                       )
 			 		  .Cutoff(0.5,true,$scope.ping);  // setup a trigger that will inform us when we get close
+  
   
   //
   // when the user moves, keep track of him/her
