@@ -419,9 +419,9 @@ exports.spatialHelper = spatialHelper;
 //
 function Matrix4() {
   this.m = [ [1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1]];
+             [0, 1, 0, 0],
+             [0, 0, 1, 0],
+             [0, 0, 0, 1]];
   this.Set3V = function(v1,v2,v3) {
     this.m[0][0] = v1.v[0];
     this.m[0][1] = v1.v[1];
@@ -436,16 +436,16 @@ function Matrix4() {
   }
   this.Translate = function (x, y, z) {
     var t = [ [1, 0, 0, 0],
-             [0, 1, 0, 0],
-             [0, 0, 1, 0],
-             [x, y, z, 1]];
+              [0, 1, 0, 0],
+              [0, 0, 1, 0],
+              [x, y, z, 1]];
     return this.Multiply(t);
   }
   this.Scale = function (x, y, z) {
     var s = [ [x, 0, 0, 0],
-             [0, y, 0, 0],
-             [0, 0, z, 0],
-             [0, 0, 0, 1]];
+              [0, y, 0, 0],
+              [0, 0, z, 0],
+              [0, 0, 0, 1]];
     return this.Multiply(s);
   }
   this.Rotate = function (axis, angle, fromDeg) {
@@ -541,36 +541,36 @@ function Matrix4() {
   }
   this.ToEuler = function(toDeg) {
     
-        // assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
-        var m11 = this.m[0][0], m12 = this.m[1][0], m13 = this.m[2][0];
-        var m21 = this.m[0][1], m22 = this.m[1][1], m23 = this.m[2][1];
-        var m31 = this.m[0][2], m32 = this.m[1][2], m33 = this.m[2][2];
-        var sy = Math.sqrt(m32 * m32 + m33 * m33);
+    // assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
+    var m11 = this.m[0][0], m12 = this.m[1][0], m13 = this.m[2][0];
+    var m21 = this.m[0][1], m22 = this.m[1][1], m23 = this.m[2][1];
+    var m31 = this.m[0][2], m32 = this.m[1][2], m33 = this.m[2][2];
+    var sy  = Math.sqrt(m32 * m32 + m33 * m33);
      
-        var singular = (sy < 0.000001) ? true : false;
-        var _x, _y, _z;
+    var singular = (sy < 0.000001) ? true : false;
+    var _x, _y, _z;
         
-        if (singular === false) {
-            _x = Math.atan2(  m32, m33);
-            _y = Math.atan2(- m31, sy);
-            _z = Math.atan2(  m21, m11);
-        } else {
-            _x = Math.atan2(- m32, m22);
-            _y = Math.atan2(- m31, sy);
-            _z = 0;
-        }
+    if (singular === false) {
+      _x = Math.atan2(  m32, m33);
+      _y = Math.atan2(- m31, sy);
+      _z = Math.atan2(  m21, m11);
+    } else {
+      _x = Math.atan2(- m32, m22);
+      _y = Math.atan2(- m31, sy);
+      _z = 0;
+    }
         
-        // convert to degrees?
-        var deg = (toDeg != undefined) ? 180.0/Math.PI : 1; 
-        var attitude = deg * _x; // make this left handed
-        var heading  = deg * _y;
-        var bank     = deg * _z;
+    // convert to degrees?
+    var deg = (toDeg != undefined) ? 180.0/Math.PI : 1; 
+    var attitude = deg * _x; // make this left handed
+    var heading  = deg * _y;
+    var bank     = deg * _z;
         
-        return { 
-          attitude:attitude, 
-          heading :heading, 
-          bank    :bank 
-        };
+    return { 
+      attitude:attitude, 
+      heading :heading, 
+      bank    :bank 
+    };
   }
 }
 // quick way to do perspective matrices
@@ -636,7 +636,7 @@ function Vector4() {
     var x = mask[0]*(this.v[0] - v2.v[0]);
     var y = mask[1]*(this.v[1] - v2.v[1]);
     var z = mask[2]*(this.v[2] - v2.v[2]);
-    var hyp = (x * x) + (y * y) + (z* z);
+    var hyp  = (x * x) + (y * y) + (z* z);
     var dist = (hyp > 0) ? Math.sqrt(hyp) : 0;
     return dist;    
   }
@@ -645,7 +645,7 @@ function Vector4() {
     return hyp;
   }
   this.Normalize = function () {
-    var rad = this.Length();
+    var rad   = this.Length();
     this.v[0] = this.v[0] / rad;
     this.v[1] = this.v[1] / rad;
     this.v[2] = this.v[2] / rad;
@@ -664,17 +664,15 @@ function Vector4() {
     return cross;
   }
   this.Add = function (v2) {
-    var add = new Vector4().Set3(
-      (this.v[0] + v2.v[0]),
-      (this.v[1] + v2.v[1]),
-      (this.v[2] + v2.v[2]));
+    var add = new Vector4().Set3( (this.v[0] + v2.v[0]),
+                                  (this.v[1] + v2.v[1]),
+                                  (this.v[2] + v2.v[2]) );
     return add;
   }
   this.Sub = function (v2) {
-    var add = new Vector4().Set3(
-      (this.v[0] - v2.v[0]),
-      (this.v[1] - v2.v[1]),
-      (this.v[2] - v2.v[2]));
+    var add = new Vector4().Set3( (this.v[0] - v2.v[0]),
+                                  (this.v[1] - v2.v[1]),
+                                  (this.v[2] - v2.v[2]) );
     return add;
   }
   this.Scale = function (s) {
@@ -696,7 +694,9 @@ function Vector4() {
     return dst;
   }
   this.ToString = function () {
-    var s = this.v[0].toPrecision(3) + ',' + this.v[1].toPrecision(3) + ',' + this.v[2].toPrecision(3);
+    var s = this.v[0].toPrecision(3) + ',' + 
+            this.v[1].toPrecision(3) + ',' + 
+            this.v[2].toPrecision(3);
     return s;
   }
 }
