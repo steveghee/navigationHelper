@@ -22,7 +22,9 @@ function spatialHelper(renderer, tunnel, targets) {
   
   this.cutoff       = 0.5;
   this.autoCutoff   = false;
-  this.triggered    = undefined;
+  this.inside       = false;
+  this.entered      = undefined;
+  this.exited       = undefined;
   
   // we are initialised asynchronously, so we need the caller to pass in
   // certain 'capabilities; e.g. the renderer
@@ -38,7 +40,8 @@ function spatialHelper(renderer, tunnel, targets) {
   this.setAt = function(locator) {
   
     if (locator != undefined) {
-    
+          
+      this.inside     = false;
       this.target.loc = this._positionHelpers( { position:locator.position.v, 
                                                      gaze:locator.gaze.v, 
                                                        up:locator.up.v });
@@ -117,9 +120,21 @@ function spatialHelper(renderer, tunnel, targets) {
         } 
         
         // and inform the user?
-        if (this.triggered != undefined) {
-          this.triggered(this,d);
+        if (this.entered != undefined &&  // are we entering the zone? 
+            this.inside === false ) {
+          this.entered(this,d);
         }
+        
+        this.inside = true;
+        
+      } else if (d > this.cutoff && 
+                 this.inside === true) {   // are we exiting the cutoff zone? 
+      
+        if (this.exited != undefined) {          
+          this.exited(this,d);
+        }
+      
+        this.inside = false;
       }
 
     }
@@ -145,7 +160,7 @@ function spatialHelper(renderer, tunnel, targets) {
   // is a callback funciton which can be used to perform some action based 
   // on the user entering the cutoff radius
   //
-  this.Cutoff = function(cutoff,auto,triggered) { 
+  this.Cutoff = function(cutoff,auto,enter,exit) { 
     if (auto != undefined) {
       this.autoCutoff = auto;
       this.cutoff     = cutoff  
@@ -153,7 +168,8 @@ function spatialHelper(renderer, tunnel, targets) {
       this.autoCutoff = false;
       this.cutoff     = (cutoff != undefined) ? cutoff : 0.5;
     }
-    this.triggered = triggered;
+    this.entered = enter;
+    this.exited  = exit;
     return this;
   }
   
