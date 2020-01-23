@@ -3,33 +3,65 @@
 //steve's positional helper library
 //
 
-function spatialHelper(renderer, tunnel, targets) {
+function _spatialHelper() {
+    
+  this.initHololens = function (renderer, targets) {
+        
+    // constructor
+    this.tunneling    = false;
+    this.showTunnel   = false;
+    this.nsteps       = 0;
+    this.color        = undefined;
+    
+    this.headloc      = undefined;
+    this.target       = targets != undefined ? targets : {};
+    this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
+    this.target.tname = this.target.device != undefined ? "target" : undefined;
+    this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
+    this.target.hname = this.target.head   != undefined ? "head"   : undefined;
+    this.floorOffset  = 0;
   
-  // constructor
-  this.nsteps       = tunnel != undefined && tunnel.steps != undefined ? tunnel.steps : 30;
-  this.color        = tunnel != undefined && tunnel.color != undefined ? tunnel.color : undefined;
-  this.tunnelGeom   = tunnel != undefined && tunnel.geom  != undefined ? tunnel.geom :"app/resources/Uploaded/Sphere.pvz";
-  this.tunneling    = false;
-  this.showTunnel   = false;
+    this.cutoff       = 0.5;
+    this.autoCutoff   = false;
+    this.inside       = undefined;
+    this.entered      = undefined;
+    this.exited       = undefined;
   
-  this.headloc      = undefined;
-  this.target       = targets != undefined ? targets : {};
-  this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
-  this.target.tname = this.target.device != undefined ? "target" : undefined;
-  this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
-  this.target.hname = this.target.head   != undefined ? "head"   : undefined;
-  this.floorOffset  = 0;
+    // we are initialised asynchronously, so we need the caller to pass in
+    // certain 'capabilities; e.g. the renderer
+    this.renderer     = renderer;
+    this.draw         = this.drawHololens;
+  ]
+
+  this.initMobile   = function (renderer, tunnel, targets) {
   
-  this.cutoff       = 0.5;
-  this.autoCutoff   = false;
-  this.inside       = undefined;
-  this.entered      = undefined;
-  this.exited       = undefined;
+    // constructor
+    this.nsteps       = tunnel != undefined && tunnel.steps != undefined ? tunnel.steps : 30;
+    this.color        = tunnel != undefined && tunnel.color != undefined ? tunnel.color : undefined;
+    this.tunnelGeom   = tunnel != undefined && tunnel.geom  != undefined ? tunnel.geom :"app/resources/Uploaded/Sphere.pvz";
+    this.tunneling    = false;
+    this.showTunnel   = false;
   
-  // we are initialised asynchronously, so we need the caller to pass in
-  // certain 'capabilities; e.g. the renderer
-  this.renderer     = renderer;
+    this.headloc      = undefined;
+    this.target       = targets != undefined ? targets : {};
+    this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
+    this.target.tname = this.target.device != undefined ? "target" : undefined;
+    this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
+    this.target.hname = this.target.head   != undefined ? "head"   : undefined;
+    this.floorOffset  = 0;
   
+    this.cutoff       = 0.5;
+    this.autoCutoff   = false;
+    this.inside       = undefined;
+    this.entered      = undefined;
+    this.exited       = undefined;
+  
+    // we are initialised asynchronously, so we need the caller to pass in
+    // certain 'capabilities; e.g. the renderer
+    this.renderer     = renderer;
+    this.draw         = this.drawMobile;
+  }
+
   ///////////////////////////////////////////////////////////////////////////////////////
   // public API
   //
@@ -101,7 +133,7 @@ function spatialHelper(renderer, tunnel, targets) {
   //
   // draw the helper - the ribbon/tunnel and any associated visuals
   //
-  this.draw = function(arg) {
+  this.drawMobile = function(arg) {
 
     if (this.tunneling) {
 
@@ -148,6 +180,52 @@ function spatialHelper(renderer, tunnel, targets) {
   }
   
   //
+  // draw the helper - the ribbon/tunnel and any associated visuals
+  //
+  this.drawHololens = function(arg) {
+
+    if (this.tunneling) {
+
+      //
+      // draw a tunnel to this point, from the camera location
+      var d = this._drawNoTunnel( {from:arg.position} );
+    
+      this.tunneling = this.showTunnel;
+          
+      // are we outside, moving in? (or outside, unknown)   
+      if (this.cutoff   > d     && 
+          this.inside  != true) {
+        
+      	// turn tunnel effect off when we get close?
+        if (this.autoCutoff === true) {
+          this.hide();
+        } 
+        
+        // and inform the user?
+        if (this.entered != undefined) {  // are we entering the zone? 
+          this.entered(this,d);
+        }
+        
+        this.inside = true;
+      } 
+      // or are we inside, moving out?
+      else if (this.cutoff  < d     && 
+                 this.inside != false) {   // are we exiting the cutoff zone? 
+      
+        if (this.exited != undefined) {          
+          this.exited(this,d);
+        }
+        
+        this.inside = false;
+      }
+
+    }
+    
+    // and keep a record of the head position
+    this.headloc = arg;
+
+  }
+  //
   // set the color of the ribbon
   //
   this.Color  = function(color)  { this.color  = color;  return this; }
@@ -179,6 +257,18 @@ function spatialHelper(renderer, tunnel, targets) {
   //
   ///////////////////////////////////////////////////////////////////////////////////////
   // private API
+  this._drawNoTunnel = function(arg) {
+    
+    var p0 = this.target.loc.position;      // staring point
+    var p3 = new Vector4().Set3a(arg.from); // end point
+    //
+    // finally, the work out our xz (floor plane) distance from the stepHelp, and if we are within 0.5m, disable the 
+    // helpers..
+    //
+    var pgd = p3.Distance(p0,[1,0,1]);
+    return pgd;
+  }
+
   this._drawTunnel = function(arg) {
     
     var pu = new Vector4().Set3a(arg.up);	// 
@@ -385,6 +475,21 @@ function spatialHelper(renderer, tunnel, targets) {
     return shapes;
   })(this);
   
+}
+
+// quick way to do mobile tracking
+function spatialHelperMobile() {
+}
+spatialHelperMobile.prototype = new _spatialHelper()
+function spatialHelperMobile(renderer,tunnel,targets) {
+  this.initMobile(renderer,tunnel,targets);
+}
+// quick way to do hololens
+function spatialHelperHololens() {
+}
+spatialHelperHololens.prototype = new _spatialHelper()
+function spatialHelperHololens(renderer,targets) {
+  this.initHololens(renderer,targets);
 }
 
 
