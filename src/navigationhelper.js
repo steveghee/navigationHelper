@@ -3,65 +3,35 @@
 //steve's positional helper library
 //
 
-function _spatialHelper() {
-    
-  this.initHololens = function (renderer, targets) {
-        
-    // constructor
-    this.tunneling    = false;
-    this.showTunnel   = false;
-    this.nsteps       = 0;
-    this.color        = undefined;
-    
-    this.headloc      = undefined;
-    this.target       = targets != undefined ? targets : {};
-    this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
-    this.target.tname = this.target.device != undefined ? "target" : undefined;
-    this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
-    this.target.hname = this.target.head   != undefined ? "head"   : undefined;
-    this.floorOffset  = 0;
+function spatialHelper(renderer, tunnel, targets) {
   
-    this.cutoff       = 0.5;
-    this.autoCutoff   = false;
-    this.inside       = undefined;
-    this.entered      = undefined;
-    this.exited       = undefined;
+  // constructor
+  this.isHololens   = tunnel != undefined && tunnel.hololens != undefined ? tunnel.hololens : false;
+  this.nsteps       = this.isHololens ? 0 : tunnel != undefined && tunnel.steps != undefined ? tunnel.steps : 30;
+  this.color        = tunnel != undefined && tunnel.color != undefined ? tunnel.color : undefined;
+  this.tunnelGeom   = tunnel != undefined && tunnel.geom  != undefined ? tunnel.geom :"app/resources/Uploaded/Sphere.pvz";
+  this.tunneling    = false;
+  this.showTunnel   = false;
   
-    // we are initialised asynchronously, so we need the caller to pass in
-    // certain 'capabilities; e.g. the renderer
-    this.renderer     = renderer;
-    this.draw         = this.drawHololens;
-  ]
-
-  this.initMobile   = function (renderer, tunnel, targets) {
+  this.headloc      = undefined;
+  this.target       = targets != undefined ? targets : {};
+  this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
+  this.target.tname = this.target.device != undefined ? "target" : undefined;
+  this.target.tdist = this.target.extent != undefined ? this.target.extent : 0.45;
+  this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
+  this.target.hname = this.target.head   != undefined ? "head"   : undefined;
+  this.floorOffset  = 0;
   
-    // constructor
-    this.nsteps       = tunnel != undefined && tunnel.steps != undefined ? tunnel.steps : 30;
-    this.color        = tunnel != undefined && tunnel.color != undefined ? tunnel.color : undefined;
-    this.tunnelGeom   = tunnel != undefined && tunnel.geom  != undefined ? tunnel.geom :"app/resources/Uploaded/Sphere.pvz";
-    this.tunneling    = false;
-    this.showTunnel   = false;
+  this.cutoff       = 0.5;
+  this.autoCutoff   = false;
+  this.inside       = undefined;
+  this.entered      = undefined;
+  this.exited       = undefined;
   
-    this.headloc      = undefined;
-    this.target       = targets != undefined ? targets : {};
-    this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
-    this.target.tname = this.target.device != undefined ? "target" : undefined;
-    this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
-    this.target.hname = this.target.head   != undefined ? "head"   : undefined;
-    this.floorOffset  = 0;
+  // we are initialised asynchronously, so we need the caller to pass in
+  // certain 'capabilities; e.g. the renderer
+  this.renderer     = renderer;
   
-    this.cutoff       = 0.5;
-    this.autoCutoff   = false;
-    this.inside       = undefined;
-    this.entered      = undefined;
-    this.exited       = undefined;
-  
-    // we are initialised asynchronously, so we need the caller to pass in
-    // certain 'capabilities; e.g. the renderer
-    this.renderer     = renderer;
-    this.draw         = this.drawMobile;
-  }
-
   ///////////////////////////////////////////////////////////////////////////////////////
   // public API
   //
@@ -133,7 +103,7 @@ function _spatialHelper() {
   //
   // draw the helper - the ribbon/tunnel and any associated visuals
   //
-  this.drawMobile = function(arg) {
+  this.draw = function(arg) {
 
     if (this.tunneling) {
 
@@ -180,52 +150,6 @@ function _spatialHelper() {
   }
   
   //
-  // draw the helper - the ribbon/tunnel and any associated visuals
-  //
-  this.drawHololens = function(arg) {
-
-    if (this.tunneling) {
-
-      //
-      // draw a tunnel to this point, from the camera location
-      var d = this._drawNoTunnel( {from:arg.position} );
-    
-      this.tunneling = this.showTunnel;
-          
-      // are we outside, moving in? (or outside, unknown)   
-      if (this.cutoff   > d     && 
-          this.inside  != true) {
-        
-      	// turn tunnel effect off when we get close?
-        if (this.autoCutoff === true) {
-          this.hide();
-        } 
-        
-        // and inform the user?
-        if (this.entered != undefined) {  // are we entering the zone? 
-          this.entered(this,d);
-        }
-        
-        this.inside = true;
-      } 
-      // or are we inside, moving out?
-      else if (this.cutoff  < d     && 
-                 this.inside != false) {   // are we exiting the cutoff zone? 
-      
-        if (this.exited != undefined) {          
-          this.exited(this,d);
-        }
-        
-        this.inside = false;
-      }
-
-    }
-    
-    // and keep a record of the head position
-    this.headloc = arg;
-
-  }
-  //
   // set the color of the ribbon
   //
   this.Color  = function(color)  { this.color  = color;  return this; }
@@ -254,21 +178,14 @@ function _spatialHelper() {
     return this;
   }
   
+  this.Auto = function(auto) {
+    this.autoCutoff = auto;
+    return this;
+  }
+  
   //
   ///////////////////////////////////////////////////////////////////////////////////////
   // private API
-  this._drawNoTunnel = function(arg) {
-    
-    var p0 = this.target.loc.position;      // staring point
-    var p3 = new Vector4().Set3a(arg.from); // end point
-    //
-    // finally, the work out our xz (floor plane) distance from the stepHelp, and if we are within 0.5m, disable the 
-    // helpers..
-    //
-    var pgd = p3.Distance(p0,[1,0,1]);
-    return pgd;
-  }
-
   this._drawTunnel = function(arg) {
     
     var pu = new Vector4().Set3a(arg.up);	// 
@@ -287,7 +204,7 @@ function _spatialHelper() {
     // here we go : classic cubic bezier spline curve
     //
     var nsp1 = this.nsteps;
-    for (var i=1; i<nsp1; i++) {
+    if (!this.isHololens) for (var i=1; i<nsp1; i++) {
     
       var img = "tunnel"+i;
    
@@ -317,7 +234,7 @@ function _spatialHelper() {
       // if we get close (within 0.5m) start fading
       //
       
-      this.renderer.setProperties(img,{ shader:foggedshade, 
+      this.renderer.setProperties(img,{ shader: foggedshade, 
                                        opacity: (gd - 0.5), 
                                         hidden: !this.showTunnel }); 
         
@@ -330,13 +247,14 @@ function _spatialHelper() {
 
     //
     // finally, the work out our xz (floor plane) distance from the stepHelp, and if we are within 0.5m, disable the 
-    // tunnel. as we get close, fade the floor marker (using the shader fade property).
+    // tunnel. as we get close, fade the floor marker (using the shader property).
     //
     var pgd = p3.Distance(p0,[1,0,1]);
     
-    if (this.target.fname != undefined) {
+    if (!this.isHololens && this.target.fname != undefined) {
       var tcol      = this.target.color != undefined ? this.target.color : this.color;
-      var pingshade = tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1;fade f '+(1 - (pgd - 0.5)) 
+      var pingshade = twx.app.isPreview() ? "Default" :
+                      tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1;fade f '+(1 - (pgd - 0.5)) 
                                         : 'pinger;rings f 5;r f 0;g f 1;b f 0;direction f -1;fade f '+(1 - (pgd - 0.5));
       this.renderer.setProperties (this.target.fname,{ shader:pingshade, 
                                                        hidden:false});
@@ -355,30 +273,37 @@ function _spatialHelper() {
       this.tunneling = this.showTunnel;
  
       if (this.target.tname != undefined) 
-      this.renderer.setProperties (this.target.tname,{shader:"foggedLit", 
-                                                      hidden:false });
+      this.renderer.setProperties (this.target.tname,{shader: twx.app.isPreview() ? "Default" : "foggedLit", 
+                                                      hidden: false });
+      if (this.target.callback != undefined)
+        this.target.callback({hidden:false});
+      
       if (this.target.fname != undefined) {
         var tcol      = this.target.color != undefined ? this.target.color : this.color;
-        var pingshade = tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1'
+        var pingshade = twx.app.isPreview() ? "Default" :
+                        tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1'
                                           : 'pinger;rings f 5;r f 0;g f 1;b f 0;direction f -1';
                                                 
-        this.renderer.setProperties (this.target.fname,{shader:pingshade,    
+        this.renderer.setProperties (this.target.fname,{shader: twx.app.isPreview() ? "Default" : pingshade,    
                                                         hidden:false });
       }
       if (this.target.hname != undefined) 
-      this.renderer.setProperties (this.target.hname,{shader:"foggedLit",    
+      this.renderer.setProperties (this.target.hname,{shader: twx.app.isPreview() ? "Default" :"foggedLit",    
                                                       hidden:false });
     
     } else {
     
       if (this.target.tname != undefined) 
-      this.renderer.setProperties (this.target.tname,{shader:"foggedLit", 
+      this.renderer.setProperties (this.target.tname,{shader:twx.app.isPreview() ? "Default" :"foggedLit", 
                                                       hidden:true});
+      if (this.target.callback != undefined)
+        this.target.callback({hidden:true});
+        
       if (this.target.fname != undefined) 
-      this.renderer.setProperties (this.target.fname,{shader:"pinger",    
+      this.renderer.setProperties (this.target.fname,{shader:twx.app.isPreview() ? "Default" : "pinger",    
                                                       hidden:true});
       if (this.target.hname != undefined) 
-      this.renderer.setProperties (this.target.hname,{shader:"foggedLit",    
+      this.renderer.setProperties (this.target.hname,{shader:twx.app.isPreview() ? "Default" : "foggedLit",    
                                                       hidden:true});
     }
   }
@@ -386,31 +311,45 @@ function _spatialHelper() {
   this._positionHelpers = function(headloc) {
     var vp = new Vector4().Set3a(headloc.position);
     var gp = new Vector4().Set3a(headloc.gaze);
-    var ep = gp.Scale(0.1).Add(vp);	// position 10cm in front of where device says it is
     
     //
     // lets get the gaze (vector) and the up (vector)
     var gaze  = new Vector4().Set3 (-headloc.gaze[0],-headloc.gaze[1],-headloc.gaze[2]);  
     var up    = new Vector4().Set3a( headloc.up ); 
     var xd    = up.CrossP(gaze);
-    var nup   = gaze.CrossP(xd); // recalc up
   
+    var ep;
+    var hp; 
+    if (this.isHololens === true) {
+      ep = gp.Scale(this.target.tdist).Add(vp);   // position target point 45cm in front
+      hp = vp;                                    // head is where we are at
+    } else {
+      ep = gp.Scale(0.1).Add(vp);	          // position 10cm in front of where device says it is
+      hp = ep.Add(gaze.Scale(this.target.tdist)); // position head behind the view point
+    }
+    
     // from gaze, up  we calculate the bitangent (nup) and from this we can calculate the view matrix
-    var em = new Matrix4().Set3V(xd,nup,gaze);
+    var nup = gaze.CrossP(xd);                     // recalc up
+    var em  = new Matrix4().Set4V(xd,nup,gaze,ep); // the matrix defines the position of the target and orientation of the target/head
+    
     // lets turn the matrix into euler angles
     var es = em.ToEuler(true);
     
     if (this.target.tname != undefined) {
       this.renderer.setTranslation(this.target.tname,ep.v[0],ep.v[1],ep.v[2]);
       this.renderer.setRotation   (this.target.tname,es.attitude, es.heading, es.bank);
-      this.renderer.setProperties (this.target.tname,{shader:"foggedLit", hidden:false});
+      this.renderer.setProperties (this.target.tname,{shader:twx.app.isPreview() ? "Default" : "foggedLit", 
+                                                      hidden:false});
     }
-
+    if (this.target.callback != undefined) {
+      var op = new Vector4().Set3(es.attitude, es.heading, es.bank);  
+      this.target.callback({location:ep, orientation:op, transform:em, hidden:false});
+    }
     if (this.target.hname != undefined) {
-      var hp = ep.Add(gaze.Scale(0.45));
       this.renderer.setTranslation(this.target.hname,hp.v[0],hp.v[1],hp.v[2]);
       this.renderer.setRotation   (this.target.hname,es.attitude, es.heading, es.bank);
-      this.renderer.setProperties (this.target.hname,{shader:"foggedLit", hidden:false});
+      this.renderer.setProperties (this.target.hname,{shader:twx.app.isPreview() ? "Default" :"foggedLit", 
+                                                      hidden:false});
     }
 
     if (this.target.fname != undefined) {
@@ -426,10 +365,10 @@ function _spatialHelper() {
       var fp  = new Vector4().Set3(ep.v[0], - this.floorOffset, ep.v[2]).Add(hg.Scale(0.5));
       
       var tcol      = this.target.color != undefined ? this.target.color : this.color;
-      var pingshade = tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1'
+      var pingshade = twx.app.isPreview() ? "Default" :
+                      tcol != undefined ? 'pinger;rings f 5;r f '+tcol[0]+';g f '+tcol[1]+';b f '+tcol[2]+';direction f -1'
                                         : 'pinger;rings f 5;r f 0;g f 1;b f 0;direction f -1';
 
-      this.renderer.setScale      (this.target.fname, 1,            1,           1       );
       this.renderer.setTranslation(this.target.fname, fp.v[0],      fp.v[1],     fp.v[2] ); 
       this.renderer.setRotation   (this.target.fname, esf.attitude, esf.heading, esf.bank);
       this.renderer.setProperties (this.target.fname, {shader:pingshade, 
@@ -444,7 +383,7 @@ function _spatialHelper() {
   
   this.tunnel_objects = (function(obj) {
     var shapes = [];
-    for (var i=1; i< obj.nsteps; i++) {
+    if (!obj.isHololens) for (var i=1; i< obj.nsteps; i++) {
      
       // declare using pvz
       shapes.push( { name:"tunnel"+i, 
@@ -475,21 +414,6 @@ function _spatialHelper() {
     return shapes;
   })(this);
   
-}
-
-// quick way to do mobile tracking
-function spatialHelperMobile() {
-}
-spatialHelperMobile.prototype = new _spatialHelper()
-function spatialHelperMobile(renderer,tunnel,targets) {
-  this.initMobile(renderer,tunnel,targets);
-}
-// quick way to do hololens
-function spatialHelperHololens() {
-}
-spatialHelperHololens.prototype = new _spatialHelper()
-function spatialHelperHololens(renderer,targets) {
-  this.initHololens(renderer,targets);
 }
 
 
@@ -533,7 +457,7 @@ function spatialHelperHololens(renderer,targets) {
 </div>
 */
 
-exports.spatialHelper = spatialHelper;
+if (exports != undefined) exports.spatialHelper = spatialHelper;
 
 
 
@@ -556,6 +480,21 @@ function Matrix4() {
     this.m[2][0] = v3.v[0];
     this.m[2][1] = v3.v[1];
     this.m[2][2] = v3.v[2];
+    return this;
+  }
+  this.Set4V = function(v1,v2,v3,v4) {
+    this.m[0][0] = v1.v[0];
+    this.m[0][1] = v1.v[1];
+    this.m[0][2] = v1.v[2];
+    this.m[1][0] = v2.v[0];
+    this.m[1][1] = v2.v[1];
+    this.m[1][2] = v2.v[2];
+    this.m[2][0] = v3.v[0];
+    this.m[2][1] = v3.v[1];
+    this.m[2][2] = v3.v[2];
+    this.m[3][0] = v4.v[0];
+    this.m[3][1] = v4.v[1];
+    this.m[3][2] = v4.v[2];
     return this;
   }
   this.Translate = function (x, y, z) {
@@ -742,6 +681,17 @@ function Vector4() {
     this.v[3] = w;
     return this;
   }
+  this.Set4a = function (a) {
+    this.v[0] = a[0];
+    this.v[1] = a[1];
+    this.v[2] = a[2];
+    this.v[3] = a[3];
+    return this;
+  }
+  this.X = function() { return this.v[0] }
+  this.Y = function() { return this.v[1] }
+  this.Z = function() { return this.v[2] }
+  this.W = function() { return this.v[3] }
   this.FromString = function (str) {
     var pcs = str.split(',');
     this.v[0] = parseFloat(pcs[0]);
@@ -825,7 +775,9 @@ function Vector4() {
   }
 }
 
-exports.Matrix4 = Matrix4;
-exports.MatrixP = MatrixP;
-exports.MatrixO = MatrixO;
-exports.Vector4 = Vector4;
+if (exports != undefined) {
+  exports.Matrix4 = Matrix4;
+  exports.MatrixP = MatrixP;
+  exports.MatrixO = MatrixO;
+  exports.Vector4 = Vector4;
+}

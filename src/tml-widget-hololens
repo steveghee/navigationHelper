@@ -1,0 +1,286 @@
+<div ng-repeat="obj in helper.nav_objects">
+  <twx-dt-model id="{{obj.name}}" 
+                           x="0" y="0" z="0" opacity="1.0"
+                           rx="0" ry="0" rz="0"
+                           src="{{obj.src}}" 
+                           hidden="true"
+                           >
+  </twx-dt-model>
+</div>
+<div ng-repeat="obj in helper.nav_images">
+  <twx-dt-image id="{{obj.name}}" 
+                           x="0" y="0" z="0" opacity="1.0"
+                           rx="-90" ry="0" rz="0"                           
+                           height="0.5" width="0.5"
+                           src="{{obj.src}}" 
+                           hidden="true"
+                           shader="pinger"
+                           >
+  </twx-dt-model>
+</div>
+
+<script name="pinger" type="x-shader/x-vertex">
+cbuffer ModelConstantBuffer : register(b0)
+{
+    float4x4 model;
+    float4x4 inverse;
+};
+
+cbuffer MaterialConstantBuffer : register(b1)
+{
+    float4   diffuseColor;
+    bool     twoSided;
+};
+
+// A constant buffer that stores each set of view and projection matrices in column-major format.
+cbuffer ViewProjectionConstantBuffer : register(b2)
+{
+    float4x4 viewProjection[2];
+    float4x4 viewInverse;
+    float4x4 viewRotationInverse;
+};
+
+// Per-vertex data used as input to the vertex shader.
+struct VertexShaderInput
+{
+    half4 pos     : POSITION;
+    half4 normal  : NORMAL;
+    half2 texcoord: TEXCOORD;
+    uint  instId  : SV_InstanceID;
+};
+
+// Per-vertex data passed to the geometry shader.
+// Note that the render target array index is set here in the vertex shader.
+struct VertexShaderOutput
+{
+    half4 pos     : SV_POSITION;
+    half2 tcoord  : TEXCOORD0;
+    uint  rtvId   : SV_RenderTargetArrayIndex; // SV_InstanceID % 2
+};
+
+// Simple shader to do vertex processing on the GPU.
+VertexShaderOutput main(VertexShaderInput input)
+{
+    VertexShaderOutput output;
+    half4 pos = half4(input.pos);
+
+    // Note which view this vertex has been sent to. Used for matrix lookup.
+    // Taking the modulo of the instance ID allows geometry instancing to be used
+    // along with stereo instanced drawing; in that case, two copies of each
+    // instance would be drawn, one for left and one for right.
+    int idx = input.instId % 2;
+
+    // Transform the vertex position into world space.
+    pos = mul(pos, model);
+
+    // pass on the texture coords
+    output.tcoord = input.texcoord - 0.5;
+  
+    // Correct for perspective and project the vertex position onto the screen.
+    pos = mul(pos, viewProjection[idx]);
+    output.pos = (half4)pos;
+
+    // Set the render target array index.
+    output.rtvId = idx;
+
+    return output;
+}
+
+</script>
+<script name="pinger" type="x-shader/x-fragment">
+Texture2D Texture1 : register(t0);
+sampler Sampler   : register(s0);
+
+cbuffer ShaderConstantBuffer : register(b0)
+{
+    float4      highlightColor;
+    //----------------------------------- (16 byte boundary)
+    bool        useTexture;
+    bool        useLight;
+    float       transparency;
+    int         pad;
+};
+
+cbuffer RenderConstantBuffer : register(b1)
+{
+    //----------------------------------- (16 byte boundary)
+    float               tick;
+    float3              ding;
+};
+
+// Per-pixel color data passed through the pixel shader.
+struct PixelShaderInput
+{
+    min16float4 pos   : SV_POSITION;
+    float2      tcoord: TEXCOORD0;
+};
+
+cbuffer TMLDefinedConstants : register(b10)
+{
+    float direction;
+    float fade;
+    float rings;
+    float rate;
+    float r;
+    float g;
+    float b;
+};
+
+min16float4 main(PixelShaderInput input) : SV_TARGET
+{
+    const float PI = 3.1415926;
+    float4 color;
+    float2 center = float2(.5,.5);  
+    half4 texture1Color = Texture1.Sample(Sampler, input.tcoord + center);
+
+    // generate a rolling sin wave - velocity (speed, direction) are specified by user
+    float viz = 1. - fade;  // master visibility
+    float wrap = 2. * PI;  // stop the clock from running into numeric problems
+    float speed = (direction < 0.) ? 1. + rate : -1. - rate;   // note there is a default speed (1) and the rate then adjusts it
+    float o = speed * tick % wrap;
+    float l = length(input.tcoord)*PI;
+    float freq = max(rings * 2.,1.);
+    float fr = o + (l * freq);
+    float a1 = sin(fr);
+    float a2 = clamp(cos(l),0.,1.); // edge fade is a cosine
+    float a = a1 * a2;
+     
+    color = half4(r,g,b,a);
+    if (length(color.rgb) == 0.) color=half4(0.,1.,0.,a);
+
+    color = texture1Color.a == 1. ? texture1Color : color;
+    if (color.a < 0.01) discard;
+
+    return min16float4(viz * color);
+}
+
+</script>
+
+
+<script name="foggedLit" type="x-shader/x-fragment">
+
+cbuffer ShaderConstantBuffer : register(b0)
+{
+    float4      highlightColor;
+    //----------------------------------- (16 byte boundary)
+    bool        useTexture;
+    bool        useLight;
+    float       transparency;
+    int         pad;
+};
+
+cbuffer RenderConstantBuffer : register(b1)
+{
+    //----------------------------------- (16 byte boundary)
+    float       tick;
+    float3      ding;
+};
+
+// Per-pixel color data passed through the pixel shader.
+struct PixelShaderInput
+{
+    half4       pos     : SV_POSITION;
+    half4       color   : COLOR0;
+    half4        world: POSITION;
+    half2       xray       : TEXCOORD0;
+};
+
+// The pixel shader passes through the color data. The color data from
+// is interpolated and assigned to a pixel at the rasterization step.
+min16float4 main(PixelShaderInput input) : SV_TARGET
+{
+    min16float4 color = min16float4(0.7,0.7,0.7,1.0);  //grey 
+    float dp = input.xray.x;
+    float     opacity = abs(dp);
+    float        xray = 1.0 - pow(opacity,3.); 
+
+    float          gz = 1.0 - clamp((input.pos.z / input.pos.w) - 0.5, 0., 1.);
+    min16float4 finalShadedColor  = min16float4(saturate(gz * xray * color).xyz, 1.0);
+
+    return finalShadedColor;
+}
+
+</script>
+<script name="foggedLit" type="x-shader/x-vertex">
+
+// A constant buffer that stores the model transform.
+cbuffer ModelConstantBuffer : register(b0)
+{
+    float4x4 model;
+    float4x4 inverse;
+};
+
+cbuffer MaterialConstantBuffer : register(b1)
+{
+    float4   diffuseColor;
+};
+
+// A constant buffer that stores each set of view and projection matrices in column-major format.
+cbuffer ViewProjectionConstantBuffer : register(b2)
+{
+    float4x4 viewProjection[2];
+    float4x4 viewInverse;
+};
+
+// Per-vertex data used as input to the vertex shader.
+struct VertexShaderInput
+{
+    half4 pos     : POSITION;
+    half4 normal  : NORMAL;
+    half2 texcoord: TEXCOORD;
+    uint  instId  : SV_InstanceID;
+};
+
+// Per-vertex data passed to the geometry shader.
+// Note that the render target array index will be set by the geometry shader
+// using the value of viewId.
+struct VertexShaderOutput
+{
+    half4 pos     : SV_POSITION;
+    half4 color: COLOR0;
+    half4 world :POSITION;
+    half2 xray       : TEXCOORD0;
+    uint   rtvId   : SV_RenderTargetArrayIndex; // SV_InstanceID % 2
+};
+
+// Simple shader to do vertex processing on the GPU.
+VertexShaderOutput main(VertexShaderInput input)
+{
+    VertexShaderOutput output;
+    half4 pos = half4(input.pos);
+
+    // Note which view this vertex has been sent to. Used for matrix lookup.
+    // Taking the modulo of the instance ID allows geometry instancing to be used
+    // along with stereo instanced drawing; in that case, two copies of each
+    // instance would be drawn, one for left and one for right.
+    int idx = input.instId % 2;
+
+    // Transform the vertex position into world space.
+    pos = mul(pos, model);
+    output.world = (half4)pos;
+
+    // I = v pos in view space
+    half4 eye = half4(0., 0., 0., 1.);
+    half3 I   = normalize(pos - mul(eye, viewInverse)).xyz;
+
+    // N = normal in view space
+    half3 N   = normalize(mul(input.normal, inverse).xyz);
+
+    // get the dot product, and store in the X component of the output, along with alpha in the Y
+    float dp    = dot(-N, I);
+    output.xray = half2(dp, 0.);
+
+    // Correct for perspective and project the vertex position onto the screen.
+    pos = mul(pos, viewProjection[idx]);
+    output.pos = (half4)pos;
+
+    output.color = (half4)diffuseColor;
+
+    // Set the instance ID. The pass-through geometry shader will set the
+    // render target array index to whatever value is set here.
+    output.rtvId = idx;
+
+    return output;
+}
+</script>
+
