@@ -529,10 +529,10 @@ function Matrix4() {
     return this.Multiply(r);
   }
   this.RotateFromEuler = function(x,y,z,deg) {
-    var mt = new Matrix4();
-    mt = mt.Rotate([1,0,0],x,deg);
-    mt = mt.Rotate([0,1,0],y,deg);
-    mt = mt.Rotate([0,0,1],z,deg);
+    var mt = new Matrix4()
+             .Rotate([1,0,0],x,deg)
+             .Rotate([0,1,0],y,deg)
+             .Rotate([0,0,1],z,deg);
     return this.Multiply(mt.m); 
   }
   this.Multiply = function (b) {
@@ -582,7 +582,7 @@ function Matrix4() {
       _y = Math.atan2(- m31, sy);
       _z = Math.atan2(  m21, m11);
     } else {
-      _x = Math.atan2(- m32, m22);
+      _x = Math.atan2(- m23, m22);
       _y = Math.atan2(- m31, sy);
       _z = 0;
     }
