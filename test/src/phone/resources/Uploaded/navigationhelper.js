@@ -359,7 +359,7 @@ function spatialHelper(renderer, tunnel, targets) {
           xd  = fup.CrossP(hg);
           em  = new Matrix4().Set3V(xd,fup,hg);
       // the feet (image) need to be flipped -90 to align to floor
-      var r90 = new Matrix4().Rotate([1,0,0],90,true).Multiply(em.m);
+      var r90 = new Matrix4().Rotate([1,0,0],-90,true).Multiply(em.m);
       var esf = r90.ToEuler(true);
       // feet are positioned 0.5m back from the target
       var fp  = new Vector4().Set3(ep.v[0], - this.floorOffset, ep.v[2]).Add(hg.Scale(0.5));
@@ -463,7 +463,7 @@ if (exports != undefined) exports.spatialHelper = spatialHelper;
 
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//steve's simple matrix/vector library
+//steve's simple matrix/vector library (reduced version)
 //
 function Matrix4() {
   this.m = [ [1, 0, 0, 0],
@@ -511,22 +511,29 @@ function Matrix4() {
               [0, 0, 0, 1]];
     return this.Multiply(s);
   }
-  this.Rotate = function (axis, angle, fromDeg) {
-    var deg = (fromDeg != undefined) ? Math.PI/180 : 1; 
-    var s  = Math.sin(angle*deg);
-    var c0 = Math.cos(angle*deg);
+  this.Rotate = function (axis,angle,deg) {
+    function deg2rad(d) { return (deg!=undefined) ? d * Math.PI / 180 : d; }
+    var s  = Math.sin(deg2rad(angle));
+    var c0 = Math.cos(deg2rad(angle));
     var c1 = 1 - c0;
     // assume normalised input vector
     var u = axis[0];
     var v = axis[1];
     var w = axis[2];
     var r = [
-      [(u * u * c1) + c0,      (u * v * c1) - (w * s), (u * w * c1) + (v * s), 0],
-      [(u * v * c1) + (w * s), (v * v * c1) + c0,      (v * w * c1) - (u * s), 0],
-      [(u * w * c1) - (v * s), (v * w * c1) + (u * s), (w * w * c1) + c0,      0],
+      [(u * u * c1) + c0,      (u * v * c1) + (w * s), (u * w * c1) - (v * s), 0],
+      [(u * v * c1) - (w * s), (v * v * c1) + c0,      (v * w * c1) + (u * s), 0],
+      [(u * w * c1) + (v * s), (w * v * c1) - (u * s), (w * w * c1) + c0,      0],
       [0,                      0,                      0,                      1]
     ];
     return this.Multiply(r);
+  }
+  this.RotateFromEuler = function(x,y,z,deg) {
+    var mt = new Matrix4();
+    mt = mt.Rotate([1,0,0],x,deg);
+    mt = mt.Rotate([0,1,0],y,deg);
+    mt = mt.Rotate([0,0,1],z,deg);
+    return this.Multiply(mt.m); 
   }
   this.Multiply = function (b) {
     var dst = [ 
@@ -548,49 +555,6 @@ function Matrix4() {
           ((this.m[3][0] * b[0][3]) + (this.m[3][1] * b[1][3]) + (this.m[3][2] * b[2][3]) + (this.m[3][3] * b[3][3])) ]];
     this.m = dst;
     return this;
-  }
-  this.makeOrtho = function(left, right, bottom, top, znear, zfar) {
-    var X = -(right + left) / (right - left);
-    var Y = -(top + bottom) / (top - bottom);
-    var Z = -(zfar + znear) / (zfar - znear);
-    var A = 2 / (right - left);
-    var B = 2 / (top - bottom);
-    var C = -2 / (zfar - znear);
-    this.m = [[A, 0, 0, 0],
-              [0, B, 0, 0],
-              [0, 0, C, 0],
-              [X, Y, Z, 1]];
-    return this;
-  }
-  this.makePerspective = function(fovy, aspect, znear, zfar) {
-    var ymax = znear * Math.tan(fovy * Math.PI / 360.0);
-    var ymin = -ymax;
-    var xmin = ymin * aspect;
-    var xmax = ymax * aspect;
-    this.makeFrustum(xmin, xmax, ymin, ymax, znear, zfar);
-    return this;
-  }
-  this.makeFrustum = function(left, right, bottom, top, znear, zfar) {
-    var X = 2 * znear / (right - left);
-    var Y = 2 * znear / (top - bottom);
-    var A = (right + left) / (right - left);
-    var B = (top + bottom) / (top - bottom);
-    var C = -(zfar + znear) / (zfar - znear);
-    var D = -2 * zfar * znear / (zfar - znear);
-    this.m = [[X, 0, 0, 0],
-              [0, Y, 0, 0],
-              [A, B, C, -1],
-              [0, 0, D, 1]];
-    return this;
-  }
-  this.Flatten = function () {
-    var f = [];
-    for (var i = 0; i < 4; i++) {
-      for (var j = 0; j < 4 ; j++) {
-        f.push(this.m[i][j]);
-      }
-    }
-    return f;
   }
   this.ToString = function () {
     var s = '';
@@ -636,20 +600,6 @@ function Matrix4() {
     };
   }
 }
-// quick way to do perspective matrices
-function MatrixP() {
-}
-MatrixP.prototype = new Matrix4()
-function MatrixP(fovy, aspect, znear, zfar) {
-  this.makePerspective(fovy, aspect, znear, zfar);
-}
-// quick way to do orthographic matrices
-function MatrixO() {
-}
-MatrixO.prototype = new Matrix4()
-function MatrixO(left, right, bottom, top, znear, zfar) {
-  this.makeOrtho(left, right, bottom, top, znear, zfar);
-}
 
 //
 // vector4
@@ -686,6 +636,13 @@ function Vector4() {
     this.v[1] = a[1];
     this.v[2] = a[2];
     this.v[3] = a[3];
+    return this;
+  }
+  this.FromEuler = function (e) {
+    this.v[0] = e.attitude;
+    this.v[1] = e.heading;
+    this.v[2] = e.bank;
+    this.v[3] = 1.0;
     return this;
   }
   this.X = function() { return this.v[0] }
@@ -777,7 +734,5 @@ function Vector4() {
 
 if (exports != undefined) {
   exports.Matrix4 = Matrix4;
-  exports.MatrixP = MatrixP;
-  exports.MatrixO = MatrixO;
   exports.Vector4 = Vector4;
 }
