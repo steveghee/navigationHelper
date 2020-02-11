@@ -1,0 +1,22 @@
+[2020-01-24T10:27:41.409Z] debug: [twx-studio:upgrade:navigation3-hl] Begin upgrade of project
+[2020-01-24T10:27:41.410Z] info: [twx-studio:upgrade:navigation3-hl] Upgrading project
+[2020-01-24T10:27:41.415Z] debug: [twx-studio:upgrade:navigation3-hl] Make sure there are not any stale files lying around
+[2020-01-24T10:27:41.416Z] debug: [twx-studio:upgrade:navigation3-hl] Create .gitignore for project dir
+[2020-01-24T10:27:41.416Z] debug: [twx-studio:upgrade:navigation3-hl] Copying /src/**/* to project, overwrite=false
+[2020-01-24T10:27:41.418Z] debug: [twx-studio:upgrade:navigation3-hl] Copying /**/* to project, skip /src/**/*,  overwrite=true
+[2020-01-24T10:27:41.522Z] debug: [twx-studio:upgrade:navigation3-hl] Copy of project files complete
+[2020-01-24T10:27:41.522Z] debug: [twx-studio:upgrade:navigation3-hl] Updating version to 
+[2020-01-24T10:27:41.522Z] debug: [twx-studio:upgrade:navigation3-hl] Copying project specific default resources.
+[2020-01-24T10:27:41.615Z] debug: [twx-studio:upgrade:navigation3-hl] onupgrade sucessful, now build the project
+[2020-01-24T10:27:41.615Z] debug: [twx-studio:upgrade:navigation3-hl] BEGIN buildApp
+[2020-01-24T10:27:41.615Z] debug: [twx-studio:upgrade:navigation3-hl] write settings
+[2020-01-24T10:27:41.615Z] debug: [twx-studio:upgrade:navigation3-hl] copy runtime extensions
+[2020-01-24T10:27:42.107Z] debug: [twx-studio:upgrade:navigation3-hl] packageThemeSet
+[2020-01-24T10:27:43.338Z] debug: [twx-studio:upgrade:navigation3-hl] onBuild
+[2020-01-24T10:27:43.339Z] info: [twx-studio:upgrade:navigation3-hl] Building ves-ar-extension app:
+[2020-01-24T10:27:43.358Z] debug: [twx-studio:upgrade:navigation3-hl] pathDir
+[2020-01-24T10:27:43.358Z] debug: [twx-studio:upgrade:navigation3-hl] scaffoldDir
+[2020-01-24T10:27:43.358Z] debug: [twx-studio:upgrade:navigation3-hl] copySrc
+[2020-01-24T10:27:43.633Z] debug: [twx-studio:upgrade:navigation3-hl] buildApp
+[2020-01-24T10:27:43.919Z] debug: [twx-studio:upgrade:navigation3-hl] END buildApp
+[2020-01-24T10:27:43.919Z] debug: [twx-studio:upgrade:navigation3-hl] Build succeeded.

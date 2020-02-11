@@ -1,0 +1,142 @@
+{
+  "attributes": {
+    "twx-widget": "",
+    "widget-id": "view-1",
+    "widget-name": "view-1",
+    "is-widget-container": "true",
+    "viewtype": "ar"
+  },
+  "children": [
+    {
+      "name": "twx-container-content",
+      "children": [
+        {
+          "attributes": {
+            "twx-widget": "",
+            "widget-id": "3DContainer-1",
+            "widget-name": "3D Container",
+            "is-widget-container": "true",
+            "enabletrackingevents": "true",
+            "dropshadow": "true"
+          },
+          "name": "twx-dt-view",
+          "children": [
+            {
+              "name": "twx-container-content",
+              "children": [
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "spatialTarget-1",
+                    "widget-name": "spatialTarget-1",
+                    "rx": "-90"
+                  },
+                  "name": "twx-dt-target-spatial"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "tml-hololens",
+                    "widget-name": "tml-hololens",
+                    "text": "<div ng-repeat=\"obj in helper.nav_objects\">\n  <twx-dt-model id=\"{{obj.name}}\" \n                           x=\"0\" y=\"0\" z=\"0\" opacity=\"1.0\"\n                           rx=\"0\" ry=\"0\" rz=\"0\"\n                           src=\"{{obj.src}}\" \n                           hidden=\"true\"\n                           >\n  </twx-dt-model>\n</div>\n<div ng-repeat=\"obj in helper.nav_images\">\n  <twx-dt-image id=\"{{obj.name}}\" \n                           x=\"0\" y=\"0\" z=\"0\" opacity=\"1.0\"\n                           rx=\"-90\" ry=\"0\" rz=\"0\"                           \n                           height=\"0.5\" width=\"0.5\"\n                           src=\"{{obj.src}}\" \n                           hidden=\"true\"\n                           shader=\"pinger\"\n                           >\n  </twx-dt-model>\n</div>\n\n<script name=\"pinger\" type=\"x-shader/x-vertex\">\ncbuffer ModelConstantBuffer : register(b0)\n{\n    float4x4 model;\n    float4x4 inverse;\n};\n\ncbuffer MaterialConstantBuffer : register(b1)\n{\n    float4   diffuseColor;\n    bool     twoSided;\n};\n\n// A constant buffer that stores each set of view and projection matrices in column-major format.\ncbuffer ViewProjectionConstantBuffer : register(b2)\n{\n    float4x4 viewProjection[2];\n    float4x4 viewInverse;\n    float4x4 viewRotationInverse;\n};\n\n// Per-vertex data used as input to the vertex shader.\nstruct VertexShaderInput\n{\n    half4 pos     : POSITION;\n    half4 normal  : NORMAL;\n    half2 texcoord: TEXCOORD;\n    uint  instId  : SV_InstanceID;\n};\n\n// Per-vertex data passed to the geometry shader.\n// Note that the render target array index is set here in the vertex shader.\nstruct VertexShaderOutput\n{\n    half4 pos     : SV_POSITION;\n    half2 tcoord  : TEXCOORD0;\n    uint  rtvId   : SV_RenderTargetArrayIndex; // SV_InstanceID % 2\n};\n\n// Simple shader to do vertex processing on the GPU.\nVertexShaderOutput main(VertexShaderInput input)\n{\n    VertexShaderOutput output;\n    half4 pos = half4(input.pos);\n\n    // Note which view this vertex has been sent to. Used for matrix lookup.\n    // Taking the modulo of the instance ID allows geometry instancing to be used\n    // along with stereo instanced drawing; in that case, two copies of each\n    // instance would be drawn, one for left and one for right.\n    int idx = input.instId % 2;\n\n    // Transform the vertex position into world space.\n    pos = mul(pos, model);\n\n    // pass on the texture coords\n    output.tcoord = input.texcoord - 0.5;\n  \n    // Correct for perspective and project the vertex position onto the screen.\n    pos = mul(pos, viewProjection[idx]);\n    output.pos = (half4)pos;\n\n    // Set the render target array index.\n    output.rtvId = idx;\n\n    return output;\n}\n\n</script>\n<script name=\"pinger\" type=\"x-shader/x-fragment\">\nTexture2D Texture1 : register(t0);\nsampler Sampler   : register(s0);\n\ncbuffer ShaderConstantBuffer : register(b0)\n{\n    float4      highlightColor;\n    //----------------------------------- (16 byte boundary)\n    bool        useTexture;\n    bool        useLight;\n    float       transparency;\n    int         pad;\n};\n\ncbuffer RenderConstantBuffer : register(b1)\n{\n    //----------------------------------- (16 byte boundary)\n    float               tick;\n    float3              ding;\n};\n\n// Per-pixel color data passed through the pixel shader.\nstruct PixelShaderInput\n{\n    min16float4 pos   : SV_POSITION;\n    float2      tcoord: TEXCOORD0;\n};\n\ncbuffer TMLDefinedConstants : register(b10)\n{\n    float direction;\n    float fade;\n    float rings;\n    float rate;\n    float r;\n    float g;\n    float b;\n};\n\nmin16float4 main(PixelShaderInput input) : SV_TARGET\n{\n    const float PI = 3.1415926;\n    float4 color;\n    float2 center = float2(.5,.5);  \n    half4 texture1Color = Texture1.Sample(Sampler, input.tcoord + center);\n\n    // generate a rolling sin wave - velocity (speed, direction) are specified by user\n    float viz = 1. - fade;  // master visibility\n    float wrap = 2. * PI;  // stop the clock from running into numeric problems\n    float speed = (direction < 0.) ? 1. + rate : -1. - rate;   // note there is a default speed (1) and the rate then adjusts it\n    float o = speed * tick % wrap;\n    float l = length(input.tcoord)*PI;\n    float freq = max(rings * 2.,1.);\n    float fr = o + (l * freq);\n    float a1 = sin(fr);\n    float a2 = clamp(cos(l),0.,1.); // edge fade is a cosine\n    float a = a1 * a2;\n     \n    color = half4(r,g,b,a);\n    if (length(color.rgb) == 0.) color=half4(0.,1.,0.,a);\n\n    color = texture1Color.a == 1. ? texture1Color : color;\n    if (color.a < 0.01) discard;\n\n    return min16float4(viz * color);\n}\n\n</script>\n\n\n<script name=\"foggedLit\" type=\"x-shader/x-fragment\">\n\ncbuffer ShaderConstantBuffer : register(b0)\n{\n    float4      highlightColor;\n    //----------------------------------- (16 byte boundary)\n    bool        useTexture;\n    bool        useLight;\n    float       transparency;\n    int         pad;\n};\n\ncbuffer RenderConstantBuffer : register(b1)\n{\n    //----------------------------------- (16 byte boundary)\n    float       tick;\n    float3      ding;\n};\n\n// Per-pixel color data passed through the pixel shader.\nstruct PixelShaderInput\n{\n    half4       pos     : SV_POSITION;\n    half4       color   : COLOR0;\n    half4        world: POSITION;\n    half2       xray       : TEXCOORD0;\n};\n\n// The pixel shader passes through the color data. The color data from\n// is interpolated and assigned to a pixel at the rasterization step.\nmin16float4 main(PixelShaderInput input) : SV_TARGET\n{\n    min16float4 color = min16float4(0.7,0.7,0.7,1.0);  //grey \n    float dp = input.xray.x;\n    float     opacity = abs(dp);\n    float        xray = 1.0 - pow(opacity,3.); \n\n    float          gz = 1.0 - clamp((input.pos.z / input.pos.w) - 0.5, 0., 1.);\n    min16float4 finalShadedColor  = min16float4(saturate(gz * xray * color).xyz, 1.0);\n\n    return finalShadedColor;\n}\n\n</script>\n<script name=\"foggedLit\" type=\"x-shader/x-vertex\">\n\n// A constant buffer that stores the model transform.\ncbuffer ModelConstantBuffer : register(b0)\n{\n    float4x4 model;\n    float4x4 inverse;\n};\n\ncbuffer MaterialConstantBuffer : register(b1)\n{\n    float4   diffuseColor;\n};\n\n// A constant buffer that stores each set of view and projection matrices in column-major format.\ncbuffer ViewProjectionConstantBuffer : register(b2)\n{\n    float4x4 viewProjection[2];\n    float4x4 viewInverse;\n};\n\n// Per-vertex data used as input to the vertex shader.\nstruct VertexShaderInput\n{\n    half4 pos     : POSITION;\n    half4 normal  : NORMAL;\n    half2 texcoord: TEXCOORD;\n    uint  instId  : SV_InstanceID;\n};\n\n// Per-vertex data passed to the geometry shader.\n// Note that the render target array index will be set by the geometry shader\n// using the value of viewId.\nstruct VertexShaderOutput\n{\n    half4 pos     : SV_POSITION;\n    half4 color: COLOR0;\n    half4 world :POSITION;\n    half2 xray       : TEXCOORD0;\n    uint   rtvId   : SV_RenderTargetArrayIndex; // SV_InstanceID % 2\n};\n\n// Simple shader to do vertex processing on the GPU.\nVertexShaderOutput main(VertexShaderInput input)\n{\n    VertexShaderOutput output;\n    half4 pos = half4(input.pos);\n\n    // Note which view this vertex has been sent to. Used for matrix lookup.\n    // Taking the modulo of the instance ID allows geometry instancing to be used\n    // along with stereo instanced drawing; in that case, two copies of each\n    // instance would be drawn, one for left and one for right.\n    int idx = input.instId % 2;\n\n    // Transform the vertex position into world space.\n    pos = mul(pos, model);\n    output.world = (half4)pos;\n\n    // I = v pos in view space\n    half4 eye = half4(0., 0., 0., 1.);\n    half3 I   = normalize(pos - mul(eye, viewInverse)).xyz;\n\n    // N = normal in view space\n    half3 N   = normalize(mul(input.normal, inverse).xyz);\n\n    // get the dot product, and store in the X component of the output, along with alpha in the Y\n    float dp    = dot(-N, I);\n    output.xray = half2(dp, 0.);\n\n    // Correct for perspective and project the vertex position onto the screen.\n    pos = mul(pos, viewProjection[idx]);\n    output.pos = (half4)pos;\n\n    output.color = (half4)diffuseColor;\n\n    // Set the instance ID. The pass-through geometry shader will set the\n    // render target array index to whatever value is set here.\n    output.rtvId = idx;\n\n    return output;\n}\n</script>"
+                  },
+                  "name": "twx-tml-text"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "info",
+                    "state-format-value": "text",
+                    "widget-name": "info",
+                    "scale": "1.0000",
+                    "x": "0.0046",
+                    "y": "0.0043",
+                    "z": "0.0341",
+                    "rx": "-90.00",
+                    "ry": "0.00",
+                    "rz": "0.00"
+                  },
+                  "name": "twx-dt-label"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "counter",
+                    "state-format-value": "text",
+                    "widget-name": "counter",
+                    "x": "0.0630",
+                    "y": "0.0000",
+                    "z": "0.0901",
+                    "rx": "-90.00",
+                    "ry": "0.00",
+                    "rz": "-0.00"
+                  },
+                  "name": "twx-dt-label"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "opboard",
+                    "widget-name": "opboard",
+                    "is-widget-container": "true",
+                    "src": "Uploaded/opboard.pvz",
+                    "visible": "false"
+                  },
+                  "name": "twx-dt-model",
+                  "children": [
+                    {
+                      "name": "twx-container-content"
+                    }
+                  ]
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "nextButton",
+                    "widget-name": "nextButton",
+                    "click-expression": "next()",
+                    "text": "next",
+                    "width": "0.08",
+                    "color": "rgba(255,0,0, 1);",
+                    "x": "0.0087",
+                    "y": "-0.0607",
+                    "z": "0.0251",
+                    "rx": "0.00",
+                    "ry": "0.00",
+                    "rz": "0.00",
+                    "visible": "false"
+                  },
+                  "name": "twx-dt-3dbutton"
+                },
+                {
+                  "attributes": {
+                    "twx-widget": "",
+                    "widget-id": "addButton",
+                    "widget-name": "addButton",
+                    "click-expression": "onAdd()",
+                    "text": "add",
+                    "width": "0.1",
+                    "y": "-0.2016",
+                    "z": "0.1823",
+                    "rx": "-53",
+                    "ry": "0.00",
+                    "rz": "0.00",
+                    "visible": "false"
+                  },
+                  "name": "twx-dt-3dbutton"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "twx-fragment-parameters"
+    },
+    {
+      "name": "twx-view-data"
+    }
+  ],
+  "name": "twx-view"
+}
