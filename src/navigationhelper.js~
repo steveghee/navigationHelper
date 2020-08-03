@@ -16,11 +16,7 @@ function spatialHelper(renderer, tunnel, targets) {
   
   this.headloc      = undefined;
   this.target       = targets != undefined ? targets : {};
-  this.target.loc   = { 
-                        position: new Vector4(), 
-                            gaze: new Vector4().Set3(0, 0,-1),
-                              up: new Vector4().Set3(0, 1, 0)
-                      };
+  this.target.loc   = { position:new Vector4(), gaze:new Vector4().Set3a([0,0,-1]) };
   this.target.tname = this.target.device != undefined ? "target" : undefined;
   this.target.tdist = this.target.extent != undefined ? this.target.extent : 0.45;
   this.target.fname = this.target.feet   != undefined ? "feet"   : undefined;
